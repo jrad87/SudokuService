@@ -1,0 +1,5 @@
+WindowsService1/bin/*
+WindowsService1/obj/*
+Solver/bin/*
+Solver/obj/*
+.vs
