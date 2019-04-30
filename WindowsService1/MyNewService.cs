@@ -50,6 +50,8 @@ namespace WindowsService1
                 System.Diagnostics.EventLog.CreateEventSource("MySource", "MyNewLog");
             }
 
+            //TODO 
+            //Eliminate the hard coded filepath somehow
             fileSystemWatcher1 = new FileSystemWatcher("C:\\Users\\Laptop\\Desktop\\Sudoku");
             fileSystemWatcher1.IncludeSubdirectories = true;
             fileSystemWatcher1.NotifyFilter = NotifyFilters.LastWrite
@@ -60,9 +62,34 @@ namespace WindowsService1
             eventLog1.Source = "MySource";
             eventLog1.Log = "MyNewLog";
         }
+        private void WatchForSudoku(object sender, System.IO.FileSystemEventArgs e) {
+            /* 
+            The goal of this event handler is to process files. It only needs to process files 
+            if they have changed. However due to unusual behavior of the FileSystemWatcher, multiple events
+            are broadcast for single changes. Consequently, eagerly checking files after changes can cause errors
+            because if the first Changed event triggers opening a given file, another Changed event will do the 
+            same, causing an IO error.
+            To mitigate this, files are scheduled for processing in a queue which should catch duplicate events 
+            and force files to be processed one by one.
+
+            This is an ugly solution and a better solution would be to scan each file in the directory when a flag is 
+            rather than use any filepath data given by the fileChanged event params
+            */
+            if (processingQueue)
+            {
+                fileQueue.Enqueue(e.FullPath);
+            }
+            else
+            {
+                fileQueue.Enqueue(e.FullPath);
+                processingQueue = true;
+                ProcessQueue();
+            }
+        }
 
         private void ProcessQueue()
         {
+            //
             while(fileQueue.Count > 0)
             {
                 try
@@ -106,19 +133,6 @@ namespace WindowsService1
                 }
             }
             processingQueue = false;
-        }
-
-        private void WatchForSudoku(object sender, System.IO.FileSystemEventArgs e) {
-            if (processingQueue)
-            {
-                fileQueue.Enqueue(e.FullPath);
-            }
-            else
-            {
-                fileQueue.Enqueue(e.FullPath);
-                processingQueue = true;
-                ProcessQueue();
-            }
         }
 
         private void FileError(object sender, ErrorEventArgs e) {
